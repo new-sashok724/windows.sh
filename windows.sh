@@ -4,7 +4,7 @@ set -euo pipefail
 
 # Too long to write options
 cpucores=8
-ramgig=20
+ramsize=20G
 
 cpufeatures=+topoext,+invtsc,host-cache-info=on,l3-cache=on
 hvflags=hv-passthrough=on,hv-spinlocks=0x1fff,hv-vendor-id=oknvidia
@@ -29,13 +29,14 @@ jemalloc.sh qemu-system-x86_64 -no-user-config -nodefaults \
     -name guest=qemuwin,debug-threads=on -msg timestamp=on \
     -accel kvm,kernel-irqchip=on -no-hpet \
     -cpu host,check,enforce,migratable=no,kvm=on,$cpufeatures,$hvflags \
-    -smp $(($cpucores*2)),sockets=1,cores=$cpucores,threads=2 -mem-prealloc -m ${ramgig}G \
+    -smp $(($cpucores*2)),sockets=1,cores=$cpucores,threads=2 -mem-prealloc -m ${ramsize} \
+    -global kvm-pit.lost_tick_policy=delay -global ICH9-LPC.disable_s3=1 -global ICH9-LPC.disable_s4=1 \
     -overcommit cpu-pm=on,mem-lock=on \
     \
     -machine q35,dump-guest-core=off,mem-merge=off,vmport=off,pflash0=ovmf-code,pflash1=ovmf-vars \
-    -boot menu=on,strict=on,order=dc,splash-time=5000 -rtc base=utc,clock=host,driftfix=none \
+    -boot menu=on,strict=on,order=dc,splash-time=5000 -rtc base=utc,clock=host,driftfix=slew \
     -monitor unix:"/run/windows/monitor.sock",server,nowait -vga none -display none -serial none -parallel none \
-    -spice addr=127.0.0.1,port=5900,disable-ticketing=on \
+    -spice addr=127.0.0.1,port=5900,disable-ticketing=on,seamless-migration=off \
     \
     -chardev spicevmc,name=vdagent,id=vdagent \
     -audiodev pa,server="/run/user/1000/pulse/native",$audioflags,id=audiodev \
