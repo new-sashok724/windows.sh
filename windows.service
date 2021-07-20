@@ -11,7 +11,9 @@ StandardError=inherit
 RuntimeDirectory=windows
 RuntimeDirectoryMode=0750
 
-ExecStart=/usr/local/bin/services/windows.sh 8 16G
+ExecStartPre=-/usr/local/bin/scripts/windows_pre.sh
+ExecStart=/usr/local/bin/scripts/windows.sh 8 20G
+ExecStopPost=-/usr/local/bin/scripts/windows_post.sh
 
 # Performance options (realtime didn't work well...)
 Nice=-19
