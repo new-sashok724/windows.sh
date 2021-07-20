@@ -3,32 +3,31 @@
 set -euo pipefail
 
 if [ $# -lt 2 ]; then
-    echo 'Usage: <cpucores> <ramsize>'
+    echo 'Usage: <cpucores> <ramsize> [extra]'
     exit 1
 fi
 
+# Too long to write options
 readonly cpucores="$1"
 readonly ramsize="$2"
 
-# Too long to write options
 readonly cpufeatures=+topoext,+invtsc,host-cache-info=on,l3-cache=on
 readonly hvflags=hv-passthrough=on,hv-spinlocks=0x1fff,hv-vendor-id=oknvidia
+
 readonly audioflags=in.frequency=48000,out.frequency=48000
 readonly driveflags=file.aio=threads,discard=unmap,cache.direct=on
+readonly scsiflags4k=physical_block_size=4096,logical_block_size=4096
 
 # Currently unneeded: (kvmflags are taken from kvm_default_props (qemu sources))
 #readonly kvmflags=kvm=off,+kvmclock,+kvm-nopiodelay,+kvm-asyncpf,+kvm-steal-time,+kvm-pv-eoi,+kvmclock-stable-bit,+x2apic,-acpi,-monitor
 #readonly hvflags=$hvflags,hv-vendor-id=fucknvidia
 
-#-device scsi-cd,drive=cd-arch,bus=scsi.0,id=scsi-cd-arch \
-#-device usb-audio,bus=xhci.0,port=1,audiodev=audiodev,id=usbaudio \
-#-device usb-host,bus=xhci.0,port=10,vendorid=0x0765,productid=0x5020,id=calibrator \
-#-device e1000,bus=pcie.0,mac=10:56:f2:d7:6f:9b,netdev=netdev,id=net \
+#-object input-linux,evdev="/dev/input/by-id/usb-Logitech_USB_Receiver-if02-event-mouse",id=imouse \
+#-object input-linux,evdev="/dev/input/by-id/usb-LEOPOLD_LEO_98Keyboard-event-kbd",grab_all=on,repeat=on,id=ikbd \
 
-readonly lgpath=/dev/shm/looking-glass-win
-touch "$lgpath"
-chmod 640 "$lgpath"
-chown sashok724:sashok724 "$lgpath"
+#-device scsi-cd,drive=cd-arch,bus=scsi.0,id=scsi-cd-arch \
+#-device usb-audio,bus=xhci.0,port=1,audiodev=audiodev,id=usb-audio \
+#-device e1000,bus=pcie.0,mac=10:56:f2:d7:6f:9b,netdev=netdev,id=net \
 
 jemalloc.sh qemu-system-x86_64 -no-user-config -nodefaults \
     -name guest=qemuwin,debug-threads=on -msg timestamp=on \
@@ -49,14 +48,13 @@ jemalloc.sh qemu-system-x86_64 -no-user-config -nodefaults \
     -chardev socket,path="/run/windows/qga.sock",server=on,wait=off,name=qga,id=qga \
     -blockdev driver=raw,file.driver=file,file.filename="/usr/share/ovmf/x64/OVMF_CODE.fd",$driveflags,read-only=on,node-name=ovmf-code \
     -blockdev driver=raw,file.driver=file,file.filename="/usr/local/etc/windows/ovmf_vars.fd",$driveflags,read-only=off,node-name=ovmf-vars \
-    -blockdev driver=raw,file.driver=file,file.filename="/mnt/storage/Archive/Software/ISO Images/Windows11pre.iso",$driveflags,read-only=on,node-name=cd-win-install \
-    -blockdev driver=raw,file.driver=file,file.filename="/usr/share/virtio/virtio-win.iso",$driveflags,read-only=on,node-name=cd-win-virtio \
+    -blockdev driver=raw,file.driver=file,file.filename="/mnt/storage/Archive/Software/ISO Images/Win10_20H2_v2_English_x64.iso",$driveflags,read-only=on,node-name=cd-win-install \
+    -blockdev driver=raw,file.driver=file,file.filename="/var/lib/libvirt/images/virtio-win.iso",$driveflags,read-only=on,node-name=cd-win-virtio \
+    -blockdev driver=raw,file.driver=file,file.filename="/mnt/testingfs/qemu/usbstick.img",$driveflags,read-only=off,node-name=drive-usb \
     -blockdev driver=raw,file.driver=host_device,file.filename="/dev/mapper/windows",$driveflags,read-only=off,node-name=drive-system \
-    -blockdev driver=raw,file.driver=file,file.filename="/mnt/storage/Images/QEMU/Windows/windowstest.img",$driveflags,read-only=off,node-name=drive-test \
+    -blockdev driver=raw,file.driver=host_device,file.filename="/dev/mapper/testing-vm2",$driveflags,read-only=off,node-name=drive-testing2 \
     -netdev tap,ifname=tapwin,script=no,downscript=no,vhost=on,id=netdev \
-    -object memory-backend-file,mem-path="$lgpath",size=256M,share=on,id=ivshmem-mem \
-    -object input-linux,evdev="/dev/input/by-id/usb-Logitech_USB_Receiver-if02-event-mouse",id=imouse \
-    -object input-linux,evdev="/dev/input/by-id/usb-LEOPOLD_LEO_98Keyboard-event-kbd",grab_all=on,repeat=on,id=ikbd \
+    -object memory-backend-file,mem-path="/dev/kvmfr0",size=128M,share=on,id=ivshmem-mem \
     -object iothread,id=thread-scsi \
     -object rng-random,filename=/dev/urandom,id=urng \
     \
@@ -75,8 +73,8 @@ jemalloc.sh qemu-system-x86_64 -no-user-config -nodefaults \
     -device vfio-pci,bus=vfio-usb-downstream4,addr=00.0,host=0a:00.0,id=usb4 \
     -device virtio-scsi-pci,bus=pcie.0,num_queues=8,iothread=thread-scsi,ioeventfd=on,id=scsi \
     -device virtio-net-pci,bus=pcie.0,netdev=netdev,mac=10:56:f2:d7:6f:9b,mq=off,ioeventfd=on,mq=on,vectors=18,id=net \
-    -device scsi-hd,drive=drive-system,bus=scsi.0,rotation_rate=1,id=scsi-drive-system \
-    -device scsi-hd,drive=drive-test,bus=scsi.0,rotation_rate=1,id=scsi-drive-test \
+    -device scsi-hd,drive=drive-system,bus=scsi.0,rotation_rate=1,$scsiflags4k,id=scsi-drive-system \
+    -device scsi-hd,drive=drive-testing2,bus=scsi.0,rotation_rate=1,$scsiflags4k,id=scsi-drive-testing2 \
     -device ahci,id=ahci1 -device ahci,id=ahci2 \
     -device ide-cd,drive=cd-win-install,bus=ahci1.0,id=ide-win-install \
     -device ide-cd,drive=cd-win-virtio,bus=ahci2.0,id=ide-win-virtio \
@@ -93,6 +91,5 @@ jemalloc.sh qemu-system-x86_64 -no-user-config -nodefaults \
     -device hda-duplex,audiodev=audiodev,id=hdad \
     \
     -device qemu-xhci,bus=pcie.0,p2=15,p3=15,id=xhci \
-    -device usb-host,bus=xhci.0,port=2,vendorid=0x046d,productid=0xc08c,id=usbmouse \
-    -device usb-host,bus=xhci.0,port=3,vendorid=0x046d,productid=0xc33f,id=usbkbd \
-    -device usb-host,bus=xhci.0,port=4,vendorid=0x06cb,productid=0x0082,id=fingerprint
+    -device usb-storage,bus=xhci.0,port=1,drive=drive-usb,$scsiflags4k,id=usb-stick \
+    "${@:3}"
