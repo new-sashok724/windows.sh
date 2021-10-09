@@ -36,6 +36,7 @@ Specials:
 * Found many useful flags in other configurations, as well as in qemu official doc
 * CPU-PM and preallocated RAM is enabled to reduce latency
 * KVM state is not hidden, since NVidia allowed using their GPUs in VMs recently
-* Virtio devices are used for anything that can be paravirtualized
+* VirtIO devices are used for anything that can be paravirtualized
 * Uses kvmfr module for creating IVSHMEM device
 * Separate physical USB controller is also passed through; qemu-xhci is buggy when used with multiple same devices (e.g. with Valve HMD controllers)
+* Secure boot and TPM2 is enabled

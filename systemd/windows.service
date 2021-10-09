@@ -3,6 +3,10 @@
 [Unit]
 Description=Windows VFIO VM
 
+BindsTo=windows-tpm.service
+After=windows-tpm.service
+PropagatesStopTo=windows-tpm.service
+
 [Service]
 Type=simple
 StandardOutput=journal
@@ -11,9 +15,9 @@ StandardError=inherit
 RuntimeDirectory=windows
 RuntimeDirectoryMode=0750
 
-ExecStartPre=-/usr/local/bin/scripts/windows_pre.sh
+ExecStartPre=/usr/local/bin/scripts/windows_pre.sh
 ExecStart=/usr/local/bin/scripts/windows.sh 8 20G
-ExecStopPost=-/usr/local/bin/scripts/windows_post.sh
+ExecStopPost=/usr/local/bin/scripts/windows_post.sh
 
 # Performance options (realtime didn't work well...)
 Nice=-19

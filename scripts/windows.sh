@@ -15,7 +15,11 @@ readonly cpufeatures=+topoext,+invtsc,host-cache-info=on,l3-cache=on
 readonly hvflags=hv-passthrough=on,hv-spinlocks=0x1fff,hv-vendor-id=oknvidia
 
 readonly audioflags=in.frequency=48000,out.frequency=48000
-readonly driveflags=file.aio=threads,discard=unmap,cache.direct=on
+readonly driveflags_=file.aio=io_uring,discard=unmap,detect-zeroes=unmap
+readonly driveflags_ro=$driveflags_,read-only=on,cache.direct=off
+readonly driveflags_rw=$driveflags_,read-only=off
+readonly driveflags_rwd=$driveflags_rw,cache.direct=on
+readonly driveflags_rww=$driveflags_rw,cache.direct=off
 readonly scsiflags4k=physical_block_size=4096,logical_block_size=4096
 
 # Currently unneeded: (kvmflags are taken from kvm_default_props (qemu sources))
@@ -29,6 +33,7 @@ readonly scsiflags4k=physical_block_size=4096,logical_block_size=4096
 #-device usb-audio,bus=xhci.0,port=1,audiodev=audiodev,id=usb-audio \
 #-device e1000,bus=pcie.0,mac=10:56:f2:d7:6f:9b,netdev=netdev,id=net \
 
+chown root:users /dev/kvmfr0
 jemalloc.sh qemu-system-x86_64 -no-user-config -nodefaults \
     -name guest=qemuwin,debug-threads=on -msg timestamp=on \
     -accel kvm,kernel-irqchip=on -no-hpet \
@@ -38,25 +43,27 @@ jemalloc.sh qemu-system-x86_64 -no-user-config -nodefaults \
     -overcommit cpu-pm=on,mem-lock=on \
     \
     -machine q35,dump-guest-core=off,mem-merge=off,vmport=off,pflash0=ovmf-code,pflash1=ovmf-vars \
-    -boot menu=on,strict=on,order=dc,splash="/usr/local/lib/windows/splash.bmp",splash-time=5000 -rtc base=utc,clock=host,driftfix=slew \
+    -boot menu=on,strict=on,order=dc,splash="/usr/local/etc/windows/splash.bmp",splash-time=30000 -rtc base=utc,clock=host,driftfix=slew \
     -monitor unix:"/run/windows/monitor.sock",server,nowait -qmp unix:"/run/windows/qmp.sock",server,nowait \
     -spice addr=127.0.0.1,port=5900,disable-ticketing=on,seamless-migration=off \
     -vga none -display none -serial none -parallel none \
     \
-    -audiodev pa,server="/run/user/1000/pulse/native",$audioflags,id=audiodev \
-    -chardev spicevmc,name=vdagent,id=vdagent \
-    -chardev socket,path="/run/windows/qga.sock",server=on,wait=off,name=qga,id=qga \
-    -blockdev driver=raw,file.driver=file,file.filename="/usr/share/ovmf/x64/OVMF_CODE.fd",$driveflags,read-only=on,node-name=ovmf-code \
-    -blockdev driver=raw,file.driver=file,file.filename="/usr/local/etc/windows/ovmf_vars.fd",$driveflags,read-only=off,node-name=ovmf-vars \
-    -blockdev driver=raw,file.driver=file,file.filename="/mnt/storage/Archive/Software/ISO Images/Win10_20H2_v2_English_x64.iso",$driveflags,read-only=on,node-name=cd-win-install \
-    -blockdev driver=raw,file.driver=file,file.filename="/var/lib/libvirt/images/virtio-win.iso",$driveflags,read-only=on,node-name=cd-win-virtio \
-    -blockdev driver=raw,file.driver=file,file.filename="/mnt/testingfs/qemu/usbstick.img",$driveflags,read-only=off,node-name=drive-usb \
-    -blockdev driver=raw,file.driver=host_device,file.filename="/dev/mapper/windows",$driveflags,read-only=off,node-name=drive-system \
-    -blockdev driver=raw,file.driver=host_device,file.filename="/dev/mapper/testing-vm2",$driveflags,read-only=off,node-name=drive-testing2 \
-    -netdev tap,ifname=tapwin,script=no,downscript=no,vhost=on,id=netdev \
-    -object memory-backend-file,mem-path="/dev/kvmfr0",size=128M,share=on,id=ivshmem-mem \
     -object iothread,id=thread-scsi \
     -object rng-random,filename=/dev/urandom,id=urng \
+    -object memory-backend-file,mem-path="/dev/kvmfr0",size=128M,share=on,id=ivshmem-mem \
+    -chardev socket,path="/run/windows/qga.sock",server=on,wait=off,name=qga,id=qga \
+    -chardev socket,path="/run/windows-tpm/tpm.sock",id=swtpm \
+    -chardev spicevmc,name=vdagent,id=vdagent \
+    -blockdev driver=raw,file.driver=file,file.filename="/usr/share/ovmf/x64/OVMF_CODE.secboot.fd",$driveflags_ro,node-name=ovmf-code \
+    -blockdev driver=raw,file.driver=file,file.filename="/usr/local/lib/windows/ovmf_vars.fd",$driveflags_rww,node-name=ovmf-vars \
+    -blockdev driver=raw,file.driver=file,file.filename="/mnt/storage/Archive/Software/ISO Images/Win11_English_x64.iso",$driveflags_ro,node-name=cd-win-install \
+    -blockdev driver=raw,file.driver=file,file.filename="/var/lib/libvirt/images/virtio-win.iso",$driveflags_ro,node-name=cd-win-virtio \
+    -blockdev driver=raw,file.driver=file,file.filename="/mnt/testingfs/qemu/usbstick.img",$driveflags_rwd,node-name=drive-usb \
+    -blockdev driver=raw,file.driver=host_device,file.filename="/dev/mapper/windows",$driveflags_rwd,node-name=drive-system \
+    -blockdev driver=raw,file.driver=host_device,file.filename="/dev/mapper/testing-vm2",$driveflags_rwd,node-name=drive-testing2 \
+    -netdev tap,ifname=tap-windows,script=no,downscript=no,vhost=on,id=netdev \
+    -tpmdev emulator,chardev=swtpm,id=tpmdev \
+    -audiodev pa,server="/run/user/1000/pulse/native",$audioflags,id=audiodev \
     \
     -device pcie-root-port,bus=pcie.0,chassis=0,hotplug=false,id=vfio-gpu-port \
     -device pcie-root-port,bus=pcie.0,chassis=1,hotplug=false,id=vfio-usb-port \
@@ -85,8 +92,9 @@ jemalloc.sh qemu-system-x86_64 -no-user-config -nodefaults \
     -device virtio-rng-pci,bus=pcie.0,rng=urng,id=rng \
     -device virtio-serial-pci,bus=pcie.0,id=serial \
     -device ivshmem-plain,bus=pcie.0,memdev=ivshmem-mem,id=ivshmem \
-    -device virtserialport,chardev=vdagent,name=com.redhat.spice.0,id=serial-spice \
     -device virtserialport,chardev=qga,name=org.qemu.guest_agent.0,id=serial-qga \
+    -device virtserialport,chardev=vdagent,name=com.redhat.spice.0,id=serial-spice \
+    -device tpm-tis,tpmdev=tpmdev,id=tpm-tis \
     -device intel-hda,bus=pcie.0,msi=on,id=hda \
     -device hda-duplex,audiodev=audiodev,id=hdad \
     \
