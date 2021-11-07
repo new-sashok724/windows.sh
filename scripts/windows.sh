@@ -34,6 +34,7 @@ readonly scsiflags4k=physical_block_size=4096,logical_block_size=4096
 #-device e1000,bus=pcie.0,mac=10:56:f2:d7:6f:9b,netdev=netdev,id=net \
 
 chown root:users /dev/kvmfr0
+chmod 0660 /dev/kvmfr0
 jemalloc.sh qemu-system-x86_64 -no-user-config -nodefaults \
     -name guest=qemuwin,debug-threads=on -msg timestamp=on \
     -accel kvm,kernel-irqchip=on -no-hpet \
