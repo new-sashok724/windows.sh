@@ -15,7 +15,7 @@ ExecStart=swtpm socket --tpm2 \
     --tpmstate dir=/usr/local/lib/windows/tpm/,mode=0600 \
     --ctrl type=unixio,path=/run/windows-tpm/tpm.sock,mode=0600 \
     --key file=/usr/local/etc/windows/tpm.key,format=binary,mode=aes-256-cbc \
-    --log level=20
+    --log level=1
 
 [Install]
 WantedBy=multi-user.target

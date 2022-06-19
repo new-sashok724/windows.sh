@@ -16,10 +16,11 @@ RuntimeDirectory=windows
 RuntimeDirectoryMode=0750
 
 ExecStartPre=/usr/local/bin/scripts/windows_pre.sh
-ExecStart=/usr/local/bin/scripts/windows.sh 8 20G
+ExecStart=/usr/local/bin/scripts/windows.sh
 ExecStopPost=/usr/local/bin/scripts/windows_post.sh
 
 # Performance options (realtime didn't work well...)
+Slice=windows.slice
 Nice=-19
 IOSchedulingClass=best-effort
 IOSchedulingPriority=0

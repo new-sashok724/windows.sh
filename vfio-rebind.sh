@@ -1,7 +1,7 @@
 #!/bin/bash
 # sashok724 was here
 set -euo pipefail
-source '/usr/local/bin/scripts/vfio_common.sh'
+source '/usr/local/bin/scripts/windows_common.sh'
 
 if [ $EUID -ne 0 ] || [ $UID -ne 0 ] && [ $UID -ne 1000 ]; then
     echo "You forgot sudo, bitch"

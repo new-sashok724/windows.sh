@@ -1,0 +1,7 @@
+# sashok724 was here
+# Unlike other slices, this one will not be limited to specific CPUs when VM is running
+# KVM threads will be pinned to isolated CPUs, while other QEMU threads will be limited to same CPUs just like other slices
+
+[Unit]
+Description=Windows VFIO VM Slice
+Before=slices.target
